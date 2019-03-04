@@ -251,7 +251,7 @@ class L2populationMechanismDriver(api.MechanismDriver):
             self.L2populationAgentNotify.remove_fdb_entries(
                 self.rpc_ctx, fdb_entries)
 
-    def update_port_up(self, context):
+    def update_port_up(self, context, agent_restarted=None):
         port = context.current
         agent_host = context.host
         session = db_api.get_session()
@@ -277,8 +277,11 @@ class L2populationMechanismDriver(api.MechanismDriver):
         # with high concurrency more than 1 port may be activated on an agent
         # at the same time (like VM port + a DVR port) so checking for 1 or 2
         is_first_port = agent_active_ports in (1, 2)
-        if is_first_port or (l2pop_db.get_agent_uptime(agent) <
-                             cfg.CONF.l2pop.agent_boot_time):
+        if agent_restarted is None:
+            # Only for backport compatibility, will be removed.
+            agent_restarted = (l2pop_db.get_agent_uptime(agent) <
+                               cfg.CONF.l2pop.agent_boot_time)
+        if is_first_port or agent_restarted:
             # First port(s) activated on current agent in this network,
             # we have to provide it with the whole list of fdb entries
             agent_fdb_entries = self._create_agent_fdb(session,

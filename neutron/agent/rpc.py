@@ -173,12 +173,13 @@ class PluginApi(object):
         return {'devices': succeeded_devices, 'failed_devices': failed_devices}
 
     def update_device_list(self, context, devices_up, devices_down,
-                           agent_id, host):
+                           agent_id, host, agent_restarted=False):
         try:
             cctxt = self.client.prepare(version='1.5')
             res = cctxt.call(context, 'update_device_list',
                              devices_up=devices_up, devices_down=devices_down,
-                             agent_id=agent_id, host=host)
+                             agent_id=agent_id, host=host,
+                             agent_restarted=agent_restarted)
         except oslo_messaging.UnsupportedVersion:
             #TODO(rossella_s): Remove this failback logic in M
             dev_up = self._device_list_rpc_call_with_failed_dev(

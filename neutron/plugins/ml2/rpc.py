@@ -202,6 +202,7 @@ class RpcCallbacks(type_tunnel.TunnelRpcCallbackMixin):
         agent_id = kwargs.get('agent_id')
         device = kwargs.get('device')
         host = kwargs.get('host')
+        agent_restarted = kwargs.pop('agent_restarted', None)
         LOG.debug("Device %(device)s up at agent %(agent_id)s",
                   {'device': device, 'agent_id': agent_id})
         plugin = manager.NeutronManager.get_plugin()
@@ -227,7 +228,8 @@ class RpcCallbacks(type_tunnel.TunnelRpcCallbackMixin):
         else:
             self.update_port_status_to_active(port, rpc_context, port_id, host)
         self.notify_ha_port_status(port_id, rpc_context,
-                                   n_const.PORT_STATUS_ACTIVE, host, port=port)
+                                   n_const.PORT_STATUS_ACTIVE, host, port,
+                                   agent_restarted)
 
     def update_port_status_to_active(self, port, rpc_context, port_id, host):
         plugin = manager.NeutronManager.get_plugin()
@@ -251,7 +253,8 @@ class RpcCallbacks(type_tunnel.TunnelRpcCallbackMixin):
                 provisioning_blocks.L2_AGENT_ENTITY)
 
     def notify_ha_port_status(self, port_id, rpc_context,
-                              status, host, port=None):
+                              status, host, port=None,
+                              agent_restarted=None):
         plugin = manager.NeutronManager.get_plugin()
         l2pop_driver = plugin.mechanism_manager.mech_drivers.get(
                 'l2population')
@@ -269,7 +272,7 @@ class RpcCallbacks(type_tunnel.TunnelRpcCallbackMixin):
             port_context.current['status'] = status
             port_context.current[portbindings.HOST_ID] = host
             if status == n_const.PORT_STATUS_ACTIVE:
-                l2pop_driver.obj.update_port_up(port_context)
+                l2pop_driver.obj.update_port_up(port_context, agent_restarted)
             else:
                 l2pop_driver.obj.update_port_down(port_context)
 

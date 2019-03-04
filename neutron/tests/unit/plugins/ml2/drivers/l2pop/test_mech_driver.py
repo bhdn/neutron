@@ -266,6 +266,12 @@ class TestL2PopulationRpcTestCase(test_plugin.Ml2PluginV2TestCase):
         self._bind_router(router['id'], router['tenant_id'])
         return router
 
+    def _create_dvr_router(self):
+        self._setup_l3()
+        router = self._create_router(distributed=True)
+        self._bind_router(router['id'], router['tenant_id'])
+        return router
+
     def _verify_remove_fdb(self, expected, agent_id, device, host=None):
         self.mock_fanout.reset_mock()
         self.callbacks.update_device_down(self.adminContext, agent_id=host,
@@ -342,6 +348,81 @@ class TestL2PopulationRpcTestCase(test_plugin.Ml2PluginV2TestCase):
                                          router['id'], interface_info)
                 self.mock_fanout.assert_called_with(
                     mock.ANY, 'remove_fdb_entries', expected)
+
+    def _test_ovs_agent_restarted_with_dvr_port(
+            self, agent_boot_timeout=True, agent_restarted=False):
+        plugin = manager.NeutronManager.get_plugin()
+        router = self._create_dvr_router()
+        with mock.patch.object(l2pop_mech_driver.L2populationMechanismDriver,
+                               'agent_restarted',
+                               return_value=agent_boot_timeout):
+            with self.subnet(network=self._network,
+                             enable_dhcp=False) as snet:
+                with self.port(
+                        subnet=snet,
+                        device_owner=constants.DEVICE_OWNER_DVR_INTERFACE)\
+                            as port:
+                    port_id = port['port']['id']
+                    plugin.update_distributed_port_binding(self.adminContext,
+                        port_id, {'port': {portbindings.HOST_ID: HOST_4,
+                        'device_id': router['id']}})
+                    port = self._show('ports', port_id)
+                    self.assertEqual(portbindings.VIF_TYPE_DISTRIBUTED,
+                                    port['port'][portbindings.VIF_TYPE])
+                    self.callbacks.update_device_up(
+                        self.adminContext,
+                        agent_id=HOST_4,
+                        device=port_id,
+                        host=HOST_4,
+                        agent_restarted=agent_restarted)
+                    fanout_expected = {port['port']['network_id']: {
+                        'network_type': u'vxlan',
+                        'ports': {
+                            u'20.0.0.4': [('00:00:00:00:00:00', '0.0.0.0')]},
+                        'segment_id': 1}}
+                    self.mock_fanout.assert_called_with(mock.ANY,
+                                                        'add_fdb_entries',
+                                                        fanout_expected)
+
+    def test_ovs_agent_restarted_with_dvr_port_boot_config_timeout(self):
+        self._test_ovs_agent_restarted_with_dvr_port()
+
+    def test_ovs_agent_restarted_with_dvr_port_rpc_send_timeout(self):
+        self._test_ovs_agent_restarted_with_dvr_port(
+            agent_boot_timeout=False, agent_restarted=True)
+
+    def test_ha_agents_with_dvr_rtr_does_not_get_other_fdb(self):
+        router = self._create_dvr_router()
+        service_plugins = manager.NeutronManager.get_service_plugins()
+        service_plugins[service_constants.L3_ROUTER_NAT] = self.plugin
+        with self.subnet(network=self._network, enable_dhcp=False) as snet, \
+            mock.patch('neutron.manager.NeutronManager.get_service_plugins',
+                       return_value=service_plugins):
+            host_arg = {portbindings.HOST_ID: HOST_4, 'admin_state_up': True}
+            with self.port(subnet=snet,
+                           device_owner=DEVICE_OWNER_COMPUTE,
+                           arg_list=(portbindings.HOST_ID,),
+                           **host_arg) as port1:
+                p1 = port1['port']
+                device1 = 'tap' + p1['id']
+                self.callbacks.update_device_up(
+                    self.adminContext, agent_id=HOST_4, device=device1)
+
+                subnet = snet['subnet']
+                port = self._add_router_interface(subnet, router, HOST)
+
+                self.mock_cast.assert_not_called()
+                self.mock_fanout.assert_not_called()
+
+                self.mock_cast.reset_mock()
+                self.mock_fanout.reset_mock()
+
+                self.callbacks.update_device_up(
+                    self.adminContext, agent_id=HOST_2,
+                    device=port['id'], host=HOST_2)
+
+                self.mock_cast.assert_not_called()
+                self.mock_fanout.assert_not_called()
 
     def test_ha_agents_get_other_fdb(self):
         # First network port is added on HOST4, then HA router port is

@@ -443,6 +443,7 @@ class RpcApiTestCase(base.BaseTestCase):
                            devices_down=['fake_device3', 'fake_device4'],
                            agent_id='fake_agent_id',
                            host='fake_host',
+                           agent_restarted=False,
                            version='1.5')
 
     def test_update_device_list_unsupported(self):
