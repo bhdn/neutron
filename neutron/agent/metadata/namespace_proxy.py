@@ -177,8 +177,9 @@ def main():
     ]
 
     cfg.CONF.register_cli_opts(opts)
-    # Don't get the default configuration file
-    cfg.CONF(project='neutron', default_config_files=[])
+    # Don't read any default configuration file,  just handle cmdline opts
+    cfg.CONF(project='neutron',
+             default_config_files=[], default_config_dirs=[])
     config.setup_logging()
     utils.log_opt_values(LOG)
 
