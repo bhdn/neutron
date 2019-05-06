@@ -1630,6 +1630,7 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         devices_added_updated = (port_info.get('added', set()) |
                                  port_info.get('updated', set()))
         need_binding_devices = []
+        skipped_devices = set()
         if devices_added_updated:
             start = time.time()
             (skipped_devices, need_binding_devices,
@@ -1647,12 +1648,12 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                        'elapsed': time.time() - start})
             # Update the list of current ports storing only those which
             # have been actually processed.
-            port_info['current'] = (port_info['current'] -
-                                    set(skipped_devices))
+            skipped_devices = set(skipped_devices)
+            port_info['current'] = (port_info['current'] - skipped_devices)
 
         # TODO(salv-orlando): Optimize avoiding applying filters
         # unnecessarily, (eg: when there are no IP address changes)
-        added_ports = port_info.get('added', set())
+        added_ports = port_info.get('added', set()) - skipped_devices
         self._add_port_tag_info(need_binding_devices)
         self.sg_agent.setup_port_filters(added_ports,
                                          port_info.get('updated', set()))
