@@ -507,11 +507,11 @@ class L3NATAgent(ha.AgentMixin,
 
     def _process_router_update(self):
         for rp, update in self._queue.each_update_to_next_router():
-            LOG.debug("Starting router update for %s, action %s, priority %s",
-                      update.id, update.action, update.priority)
+            LOG.info("Starting router update for %s, action %s, priority %s",
+                     update.id, update.action, update.priority)
             if update.action == queue.PD_UPDATE:
                 self.pd.process_prefix_update()
-                LOG.debug("Finished a router update for %s", update.id)
+                LOG.info("Finished a router update for %s", update.id)
                 continue
             router = update.router
             if update.action != queue.DELETE_ROUTER and not router:
@@ -538,7 +538,7 @@ class L3NATAgent(ha.AgentMixin,
                     # processing queue (like events from fullsync) in order to
                     # prevent deleted router re-creation
                     rp.fetched_and_processed(update.timestamp)
-                LOG.debug("Finished a router update for %s", update.id)
+                LOG.info("Finished a router update for %s", update.id)
                 continue
 
             try:
@@ -557,7 +557,7 @@ class L3NATAgent(ha.AgentMixin,
                 self._resync_router(update)
                 continue
 
-            LOG.debug("Finished a router update for %s", update.id)
+            LOG.info("Finished a router update for %s", update.id)
             rp.fetched_and_processed(update.timestamp)
 
     def _process_routers_loop(self):
