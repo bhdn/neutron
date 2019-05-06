@@ -41,7 +41,8 @@ class TestDvrSnatNs(base.BaseTestCase):
         self.snat_ns.create()
 
         netns_cmd = ['ip', 'netns', 'exec', self.snat_ns.name]
-        loose_cmd = ['sysctl', '-w', 'net.netfilter.nf_conntrack_tcp_loose=0']
+        loose_cmd = ['sysctl', '-w', 'net.netfilter.nf_conntrack_tcp_loose=0',
+                     'net.netfilter.nf_conntrack_tcp_be_liberal=1']
         expected = [mock.call(netns_cmd + loose_cmd,
                               check_exit_code=True, extra_ok_codes=None,
                               log_fail_as_error=True, run_as_root=True)]

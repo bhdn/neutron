@@ -36,8 +36,11 @@ class SnatNamespace(namespaces.Namespace):
         ip_lib.set_ip_nonlocal_bind_for_namespace(self.name)
         # Set nf_conntrack_tcp_loose to 0 to ensure mid-stream
         # TCP conversations aren't taken over by SNAT
+        # Be liberal in the state tracking to avoid
+        # issues with TCP window scaling
         ip_lib.IPWrapper(namespace=self.name).netns.execute(
-            ['sysctl', '-w', 'net.netfilter.nf_conntrack_tcp_loose=0'])
+            ['sysctl', '-w', 'net.netfilter.nf_conntrack_tcp_loose=0',
+             'net.netfilter.nf_conntrack_tcp_be_liberal=1'])
 
     @classmethod
     def get_snat_ns_name(cls, router_id):
