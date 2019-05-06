@@ -36,9 +36,10 @@ class L3DvrTestCase(ml2_test_base.ML2TestFramework):
         self.l3_agent = helpers.register_l3_agent(
             agent_mode=constants.L3_AGENT_MODE_DVR_SNAT)
 
-    def _create_router(self, distributed=True, ha=False):
+    def _create_router(self, distributed=True, ha=False, admin_state_up=True):
         return (super(L3DvrTestCase, self).
-                _create_router(distributed=distributed, ha=ha))
+                _create_router(distributed=distributed, ha=ha,
+                               admin_state_up=admin_state_up))
 
     def test_update_router_db_centralized_to_distributed(self):
         router = self._create_router(distributed=False)

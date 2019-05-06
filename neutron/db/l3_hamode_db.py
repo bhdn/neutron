@@ -501,42 +501,14 @@ class L3_HA_NAT_db_mixin(l3_dvr_db.L3_NAT_with_dvr_db_mixin,
     @db_api.retry_if_session_inactive()
     def _update_router_db(self, context, router_id, data):
         router_db = self._get_router(context, router_id)
-
-        original_distributed_state = router_db.extra_attributes.distributed
         original_ha_state = router_db.extra_attributes.ha
-
         requested_ha_state = data.pop('ha', None)
-        requested_distributed_state = data.get('distributed', None)
-        # cvr to dvrha
-        if not original_distributed_state and not original_ha_state:
-            if (requested_ha_state is True and
-                    requested_distributed_state is True):
-                raise l3_ha.UpdateToDvrHamodeNotSupported()
-
-        # cvrha to any dvr...
-        elif not original_distributed_state and original_ha_state:
-            if requested_distributed_state is True:
-                raise l3_ha.DVRmodeUpdateOfHaNotSupported()
-
-        # dvr to any ha...
-        elif original_distributed_state and not original_ha_state:
-            if requested_ha_state is True:
-                raise l3_ha.HAmodeUpdateOfDvrNotSupported()
-
-        #dvrha to any cvr...
-        elif original_distributed_state and original_ha_state:
-            if requested_distributed_state is False:
-                raise l3_ha.DVRmodeUpdateOfDvrHaNotSupported()
-            #elif dvrha to dvr
-            if requested_ha_state is False:
-                raise l3_ha.HAmodeUpdateOfDvrHaNotSupported()
-
         ha_changed = (requested_ha_state is not None and
                       requested_ha_state != original_ha_state)
         if ha_changed:
             if router_db.admin_state_up:
                 msg = _('Cannot change HA attribute of active routers. Please '
-                        'set router admin_state_up to False prior to upgrade.')
+                        'set router admin_state_up to False prior to upgrade')
                 raise n_exc.BadRequest(resource='router', msg=msg)
             # set status to ALLOCATING so this router is no longer
             # provided to agents while its interfaces are being re-configured.
@@ -544,6 +516,8 @@ class L3_HA_NAT_db_mixin(l3_dvr_db.L3_NAT_with_dvr_db_mixin,
             # status cannot be used because agents treat hidden routers as
             # deleted routers.
             data['status'] = n_const.ROUTER_STATUS_ALLOCATING
+        else:
+            data['ha'] = original_ha_state
 
         with context.session.begin(subtransactions=True):
             router_db = super(L3_HA_NAT_db_mixin, self)._update_router_db(
